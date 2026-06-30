@@ -1,0 +1,15 @@
+{
+  "name": "@supershop/config-eslint",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "dependencies": {
+    "@eslint/js": "^10",
+    "typescript-eslint": "^8",
+    "eslint-config-prettier": "^10"
+  }
+}

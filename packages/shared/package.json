@@ -1,0 +1,31 @@
+{
+  "name": "@supershop/shared",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test src/money.test.ts",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@supershop/config-ts": "workspace:*",
+    "@supershop/config-eslint": "workspace:*",
+    "@types/node": "^26",
+    "typescript": "^5",
+    "tsx": "^4",
+    "eslint": "^10"
+  }
+}

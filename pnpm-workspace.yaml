@@ -1,0 +1,26 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Supply-chain hardening (pnpm 10+). See https://pnpm.io/settings
+minimumReleaseAge: 10080 # wait 7 days before installing newly published versions
+blockExoticSubdeps: true # refuse transitive deps from git/http/other untrusted sources
+# NOTE: `trustPolicy: no-downgrade` is intentionally omitted — it hard-fails the install
+# because chokidar@4.0.3 (transitive via @nestjs/cli) dropped the provenance attestation an
+# earlier version had. Re-enable once the NestJS toolchain ships consistent provenance.
+
+# Build scripts are blocked by default; allow only the prebuilt native deps we trust.
+onlyBuiltDependencies:
+  - esbuild
+  - "@tailwindcss/oxide"
+  - sharp
+  - "@swc/core"
+  - unrs-resolver
+  - msgpackr-extract
+allowBuilds:
+  esbuild: true
+  "@tailwindcss/oxide": true
+  sharp: true
+  "@swc/core": true
+  unrs-resolver: true
+  msgpackr-extract: true

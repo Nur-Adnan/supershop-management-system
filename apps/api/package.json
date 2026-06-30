@@ -1,0 +1,39 @@
+{
+  "name": "@supershop/api",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "test": "jest --passWithNoTests"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11",
+    "@nestjs/core": "^11",
+    "@nestjs/platform-fastify": "^11",
+    "@nestjs/config": "^4",
+    "@nestjs/mongoose": "^11",
+    "mongoose": "^9",
+    "ioredis": "^5",
+    "reflect-metadata": "^0.2",
+    "rxjs": "^7",
+    "zod": "^4",
+    "@supershop/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11",
+    "@nestjs/schematics": "^11",
+    "@nestjs/testing": "^11",
+    "@supershop/config-ts": "workspace:*",
+    "@supershop/config-eslint": "workspace:*",
+    "@types/node": "^26",
+    "@types/jest": "^30",
+    "jest": "^30",
+    "ts-jest": "^29",
+    "typescript": "^5",
+    "eslint": "^10"
+  }
+}
