@@ -44,9 +44,15 @@ importers:
       '@supershop/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      fastify:
+        specifier: ^5
+        version: 5.8.5
       ioredis:
         specifier: ^5
         version: 5.11.1
+      migrate-mongo:
+        specifier: ^14
+        version: 14.0.7(mongodb@7.2.0)
       mongoose:
         specifier: ^9
         version: 9.7.2
@@ -2175,6 +2181,10 @@ packages:
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
 
+  commander@14.0.3:
+    resolution: {integrity: sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw==}
+    engines: {node: '>=20'}
+
   commander@2.20.3:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
@@ -3043,6 +3053,13 @@ packages:
 
   merge-stream@2.0.0:
     resolution: {integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==}
+
+  migrate-mongo@14.0.7:
+    resolution: {integrity: sha512-+p7XfJDNaXPTHeo7v/ldYmVLMy8xYda0KMXSqkMUzlVndS39rMGBQHfyLrdmOKMjgciWyWpjekXzRQuj1B7HqA==}
+    engines: {node: '>=20.0.0'}
+    hasBin: true
+    peerDependencies:
+      mongodb: ^4.4.1 || ^5.0.0 || ^6.0.0  || ^7.0.0
 
   mime-db@1.54.0:
     resolution: {integrity: sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ==}
@@ -6024,6 +6041,8 @@ snapshots:
 
   color-name@1.1.4: {}
 
+  commander@14.0.3: {}
+
   commander@2.20.3: {}
 
   commander@4.1.1: {}
@@ -7080,6 +7099,12 @@ snapshots:
   memory-pager@1.5.0: {}
 
   merge-stream@2.0.0: {}
+
+  migrate-mongo@14.0.7(mongodb@7.2.0):
+    dependencies:
+      cli-table3: 0.6.5
+      commander: 14.0.3
+      mongodb: 7.2.0
 
   mime-db@1.54.0: {}
 

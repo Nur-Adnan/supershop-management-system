@@ -2,7 +2,6 @@
   "extends": "@supershop/config-ts/nestjs.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
     "baseUrl": ".",
     "types": ["node", "jest"]
   },

@@ -1,21 +1,20 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { MongooseModule } from "@nestjs/mongoose";
-import { validateEnv, type Env } from "./config/env";
+import { ConfigModule } from "@nestjs/config";
+import { validateEnv } from "./config/env";
+import { CommonModule } from "./common/common.module";
+import { DatabaseModule } from "./database/database.module";
+import { CountersModule } from "./counters/counters.module";
+import { IdempotencyModule } from "./idempotency/idempotency.module";
 import { RedisModule } from "./redis/redis.module";
 import { HealthModule } from "./health/health.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-    MongooseModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => ({
-        uri: config.get("MONGODB_URI", { infer: true }),
-        retryAttempts: 3,
-        retryDelay: 2000,
-      }),
-    }),
+    DatabaseModule,
+    CountersModule,
+    IdempotencyModule,
+    CommonModule,
     RedisModule,
     HealthModule,
   ],
