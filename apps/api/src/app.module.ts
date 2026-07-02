@@ -10,7 +10,9 @@ import { CommonModule } from "./common/common.module";
 import { CustomersModule } from "./customers/customers.module";
 import { InventoryModule } from "./inventory/inventory.module";
 import { DatabaseModule } from "./database/database.module";
+import { LoyaltyModule } from "./loyalty/loyalty.module";
 import { PosModule } from "./pos/pos.module";
+import { PromotionsModule } from "./promotions/promotions.module";
 import { PurchasingModule } from "./purchasing/purchasing.module";
 import { CountersModule } from "./counters/counters.module";
 import { IdempotencyModule } from "./idempotency/idempotency.module";
@@ -64,6 +66,8 @@ import { HealthModule } from "./health/health.module";
     AccountingModule,
     InventoryModule,
     PurchasingModule,
+    PromotionsModule,
+    LoyaltyModule,
     PosModule,
     // Throttling guard registers before Auth's guards so bursts are rejected first.
     ThrottlingModule,

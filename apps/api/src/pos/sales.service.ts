@@ -3,8 +3,8 @@ import {
   addMoney,
   ErrorCode,
   PERMISSIONS,
+  PromotionType,
   StockMovementType,
-  subtractMoney,
 } from "@supershop/shared";
 import { applyRateBps, multiplyMoney } from "@supershop/shared";
 import { hasAllPermissions } from "../auth/authz";
@@ -17,12 +17,23 @@ import { ProductsRepository } from "../catalog/product.repository";
 import { DomainException } from "../common/domain.exception";
 import { persist } from "../common/mongo.util";
 import type { ParsedPageQuery } from "../common/query/parse-query";
+import type { WithId } from "../common/repository/base.repository";
 import type { MoneyEmbed } from "../common/schema/money.schema";
 import { CountersService } from "../counters/counters.service";
 import { TransactionService } from "../database/transaction.service";
 import { StockService } from "../inventory/stock.service";
 import { StoresRepository } from "../stores/store.repository";
 import { CustomersRepository } from "../customers/customer.repository";
+import { LoyaltyService } from "../loyalty/loyalty.service";
+import { computePointsEarned, computeRedemptionValue } from "../loyalty/loyalty-invariants";
+import {
+  assertMinSubtotalMet,
+  assertPromotionApplicable,
+  computeEligibleSubtotal,
+  computePromotionDiscount,
+} from "../promotions/promotion-invariants";
+import { findPromotionByCode, PromotionRepository } from "../promotions/promotion.repository";
+import type { Promotion } from "../promotions/promotion.schema";
 import { CashSessionRepository } from "./cash-session.repository";
 import { CashTransaction } from "./cash-transaction.schema";
 import { CashTransactionRepository } from "./cash-transaction.repository";
@@ -47,11 +58,14 @@ export interface CheckoutInput {
   customerId?: string;
   lines: CheckoutLineInput[];
   discountTotal?: MoneyEmbed;
+  promotionCode?: string;
+  redeemPoints?: number;
   payments: CheckoutPaymentInput[];
 }
 
 interface BuiltLine {
   productId: string;
+  categoryId: string;
   sku: string;
   name: string;
   qty: number;
@@ -77,6 +91,8 @@ export class SalesService {
     private readonly cashTransactions: CashTransactionRepository,
     private readonly journal: JournalService,
     private readonly accounts: AccountRepository,
+    private readonly promotions: PromotionRepository,
+    private readonly loyalty: LoyaltyService,
   ) {}
 
   paginate(query: ParsedPageQuery, baseFilter = {}) {
@@ -123,7 +139,8 @@ export class SalesService {
         400,
       );
     }
-    if (dto.customerId && !(await this.customers.findById(dto.customerId))) {
+    const customerRecord = dto.customerId ? await this.customers.findById(dto.customerId) : null;
+    if (dto.customerId && !customerRecord) {
       throw new DomainException(ErrorCode.VALIDATION_ERROR, "Customer does not exist", 400);
     }
 
@@ -150,6 +167,7 @@ export class SalesService {
       const lineTax = applyRateBps(lineSubtotal, product.taxRateBps);
       built.push({
         productId: line.productId,
+        categoryId: String(product.categoryId),
         sku: product.sku,
         name: product.name,
         qty: line.qty,
@@ -183,20 +201,85 @@ export class SalesService {
         400,
       );
     }
-    if (discountTotal.amount > subtotal.amount) {
-      // A discount applies to the goods value, not tax — capping it here also guarantees the
-      // journal's net-revenue leg (subtotal - discount) is never negative.
+
+    // Promotion applicability (isActive/window/usage limit/customer group) is deliberately
+    // re-validated with a session-scoped read INSIDE the transaction below (the mutable,
+    // concurrency-sensitive state) — mirroring the customer credit-limit check. The discount
+    // VALUE, like a product's sellPrice, is computed once here from the promotion's own rules.
+    let promotion: WithId<Promotion> | null = null;
+    let promotionDiscountAmount = 0;
+    if (dto.promotionCode) {
+      promotion = await findPromotionByCode(this.promotions, dto.promotionCode);
+      if (!promotion) {
+        throw new DomainException(ErrorCode.VALIDATION_ERROR, "Promotion code does not exist", 400);
+      }
+      if (
+        promotion.type === PromotionType.FIXED &&
+        promotion.valueAmount &&
+        promotion.valueAmount.currency !== currency
+      ) {
+        throw new DomainException(
+          ErrorCode.VALIDATION_ERROR,
+          "Promotion currency does not match the sale currency",
+          400,
+        );
+      }
+      if (promotion.minSubtotal && promotion.minSubtotal.currency !== currency) {
+        throw new DomainException(
+          ErrorCode.VALIDATION_ERROR,
+          "Promotion currency does not match the sale currency",
+          400,
+        );
+      }
+      assertMinSubtotalMet(promotion.minSubtotal?.amount, subtotal.amount);
+      const eligibleSubtotal = computeEligibleSubtotal(
+        built.map((l) => ({
+          productId: l.productId,
+          categoryId: l.categoryId,
+          lineSubtotal: l.lineSubtotal.amount,
+        })),
+        promotion.productIds.map(String),
+        promotion.categoryIds.map(String),
+      );
+      promotionDiscountAmount = computePromotionDiscount(
+        promotion.type,
+        eligibleSubtotal,
+        promotion.valueBps,
+        promotion.valueAmount?.amount,
+      );
+    }
+
+    // Sufficient-balance validation happens exclusively inside the transaction (LoyaltyService.
+    // redeem), the same deferral as the credit-limit check — the redemption VALUE is a fixed
+    // conversion of the client-supplied point count, independent of the customer's balance.
+    let redemptionDiscountAmount = 0;
+    if (dto.redeemPoints) {
+      if (!dto.customerId) {
+        throw new DomainException(
+          ErrorCode.VALIDATION_ERROR,
+          "A customer is required to redeem loyalty points",
+          400,
+        );
+      }
+      redemptionDiscountAmount = computeRedemptionValue(dto.redeemPoints);
+    }
+
+    const combinedDiscountAmount =
+      discountTotal.amount + promotionDiscountAmount + redemptionDiscountAmount;
+    if (combinedDiscountAmount > subtotal.amount) {
+      // Discounts apply to the goods value, not tax — capping them here also guarantees the
+      // journal's net-revenue leg (subtotal - discounts) is never negative.
       throw new DomainException(
         ErrorCode.VALIDATION_ERROR,
-        "Discount cannot exceed the subtotal",
+        "Combined discounts cannot exceed the subtotal",
         400,
       );
     }
-    const total = subtractMoney(addMoney(subtotal, taxTotal), discountTotal);
+    const total = { amount: subtotal.amount + taxTotal.amount - combinedDiscountAmount, currency };
     if (total.amount < 0) {
       throw new DomainException(
         ErrorCode.VALIDATION_ERROR,
-        "Discount exceeds the sale subtotal and tax",
+        "Discounts exceed the sale subtotal and tax",
         400,
       );
     }
@@ -222,6 +305,40 @@ export class SalesService {
         year: new Date().getFullYear(),
         session,
       });
+
+      // Re-validate the promotion's mutable, concurrency-sensitive state (isActive/window/usage
+      // limit/customer group) against a session-scoped read, then bump usageCount atomically —
+      // mirrors GoodsReceiptsService re-reading the PO inside the transaction.
+      if (promotion) {
+        const freshPromotion = await this.promotions.findById(promotion.id, { session });
+        if (!freshPromotion) {
+          throw new DomainException(ErrorCode.NOT_FOUND, "Promotion not found", 404);
+        }
+        assertPromotionApplicable(
+          {
+            isActive: freshPromotion.isActive,
+            validFrom: freshPromotion.validFrom,
+            validTo: freshPromotion.validTo,
+            usageLimit: freshPromotion.usageLimit,
+            usageCount: freshPromotion.usageCount,
+            customerGroupIds: freshPromotion.customerGroupIds.map(String),
+          },
+          new Date(),
+          customerRecord?.groupId ? String(customerRecord.groupId) : undefined,
+        );
+        await this.promotions.updateById(promotion.id, { $inc: { usageCount: 1 } }, { session });
+      }
+
+      if (dto.redeemPoints) {
+        await this.loyalty.redeem({
+          session,
+          customerId: dto.customerId!,
+          points: dto.redeemPoints,
+          refType: "sale",
+          refId: number,
+          actor,
+        });
+      }
 
       let cogsTotal = 0;
       for (const line of dto.lines) {
@@ -295,9 +412,28 @@ export class SalesService {
         }
       }
 
+      const netRevenue = subtotal.amount - combinedDiscountAmount;
+
+      // Earning happens after cogsTotal/payments are settled but the order doesn't matter for
+      // atomicity — everything in this callback commits or rolls back together (Hard Rule 2).
+      let pointsEarned = 0;
+      if (dto.customerId) {
+        pointsEarned = computePointsEarned(netRevenue);
+        if (pointsEarned > 0) {
+          await this.loyalty.earn({
+            session,
+            customerId: dto.customerId,
+            points: pointsEarned,
+            refType: "sale",
+            refId: number,
+            actor,
+          });
+        }
+      }
+
       // Balanced double-entry posting for the whole sale, atomic with everything above:
       //   Dr [Cash/AR per payment method]         = payment amounts (= total)
-      //   Cr Sales Revenue                        = subtotal - discountTotal
+      //   Cr Sales Revenue                        = subtotal - all discounts (manual+promo+points)
       //   Cr Tax Payable                          = taxTotal (only if > 0)
       //   Dr Cost of Goods Sold / Cr Inventory    = cogsTotal (only if > 0)
       // Debit side (total + cogsTotal) always equals credit side by construction.
@@ -314,7 +450,6 @@ export class SalesService {
         const account = await requireAccountByCode(this.accounts, code);
         journalLines.push({ accountId: account.id, debit: amount, credit: 0 });
       }
-      const netRevenue = subtotal.amount - discountTotal.amount;
       if (netRevenue > 0) {
         const revenueAccount = await requireAccountByCode(
           this.accounts,
@@ -371,6 +506,13 @@ export class SalesService {
           subtotal,
           taxTotal,
           discountTotal,
+          promotionCode: promotion ? promotion.code : undefined,
+          promotionDiscount: promotion ? { amount: promotionDiscountAmount, currency } : undefined,
+          pointsRedeemed: dto.redeemPoints,
+          redemptionDiscount: dto.redeemPoints
+            ? { amount: redemptionDiscountAmount, currency }
+            : undefined,
+          pointsEarned: pointsEarned > 0 ? pointsEarned : undefined,
           total,
           payments: dto.payments,
           status: "COMPLETED",

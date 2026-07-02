@@ -1,5 +1,6 @@
 import { PromotionType } from "@supershop/shared";
 import {
+  assertMinSubtotalMet,
   assertPromotionApplicable,
   assertValidPromotionShape,
   computeEligibleSubtotal,
@@ -160,6 +161,20 @@ describe("assertPromotionApplicable", () => {
     expect(() =>
       assertPromotionApplicable(window({ customerGroupIds: ["g1", "g2"] }), NOW, "g2"),
     ).not.toThrow();
+  });
+});
+
+describe("assertMinSubtotalMet", () => {
+  it("accepts when unset", () => {
+    expect(() => assertMinSubtotalMet(undefined, 0)).not.toThrow();
+  });
+
+  it("accepts when the cart meets the minimum", () => {
+    expect(() => assertMinSubtotalMet(1000, 1000)).not.toThrow();
+  });
+
+  it("rejects when the cart falls short", () => {
+    expect(() => assertMinSubtotalMet(1000, 999)).toThrow(/minimum/);
   });
 });
 

@@ -90,6 +90,17 @@ export function assertPromotionApplicable(
   }
 }
 
+/** The cart must reach a promotion's minSubtotal (if set) before it applies. */
+export function assertMinSubtotalMet(minSubtotal: number | undefined, cartSubtotal: number): void {
+  if (minSubtotal !== undefined && cartSubtotal < minSubtotal) {
+    throw new DomainException(
+      ErrorCode.VALIDATION_ERROR,
+      "Cart subtotal does not meet the promotion's minimum",
+      400,
+    );
+  }
+}
+
 export interface PromotionLineContext {
   productId: string;
   categoryId?: string;

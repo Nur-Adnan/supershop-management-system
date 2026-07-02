@@ -22,19 +22,6 @@ export class PromotionsService extends BaseCrudService<Promotion> {
     super(promotions);
   }
 
-  /** Case-insensitive lookup for checkout — Mongoose's `uppercase: true` only normalizes on
-   * write, not on query filters. Excludes soft-deleted promotions like every other read.
-   * Applicability (isActive/window/usage limit/customer group) is NOT checked here — callers
-   * validate that via assertPromotionApplicable. */
-  async findByCode(code: string, session?: ClientSession): Promise<Promotion | null> {
-    return this.promotions.findOne({ code: code.toUpperCase() }, { session });
-  }
-
-  /** Atomically bumps usageCount inside the caller's checkout transaction. */
-  async recordUsage(id: string, session: ClientSession): Promise<void> {
-    await this.promotions.updateById(id, { $inc: { usageCount: 1 } }, { session });
-  }
-
   protected override conflictMessage(): string {
     return "A promotion with this code already exists";
   }
