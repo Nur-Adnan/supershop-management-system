@@ -73,6 +73,9 @@ These were chosen for a clean-building foundation and are intentional:
 - **Dependency ranges are major-floor caret** (`^16`, `^11`, ...) because pnpm
   `minimumReleaseAge: 10080` (7-day supply-chain wait, in pnpm-workspace.yaml) is on; this
   resolves to well-aged versions within each major.
+- **`jose` pinned to `^5`** (not 6). jose 6 is ESM-only (no `require` export); the API is
+  CommonJS (NestJS), so `require("jose")` would fail at runtime. jose 5 ships dual CJS/ESM
+  with the same API. Do not bump to 6 without moving the API to ESM.
 
 ## Pinned major versions
 

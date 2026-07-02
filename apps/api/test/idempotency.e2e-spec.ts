@@ -1,4 +1,4 @@
-process.env.MONGODB_URI ??= "mongodb://localhost:27017/supershop_test?replicaSet=rs0";
+process.env.MONGODB_URI ??= "mongodb://127.0.0.1:27017/supershop_test?replicaSet=rs0";
 process.env.NODE_ENV = "test";
 
 import { Body, Controller, Post } from "@nestjs/common";
@@ -15,6 +15,7 @@ import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fa
 import { Test } from "@nestjs/testing";
 import type { HydratedDocument, Model } from "mongoose";
 import { validateEnv } from "../src/config/env";
+import { AuditModule } from "../src/audit/audit.module";
 import { CommonModule } from "../src/common/common.module";
 import { DatabaseModule } from "../src/database/database.module";
 import { CountersModule } from "../src/counters/counters.module";
@@ -54,10 +55,12 @@ describe("Idempotency interceptor (e2e)", () => {
   let orders: Model<OrderTestDocument>;
 
   beforeAll(async () => {
+    process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/supershop_test?replicaSet=rs0";
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
         DatabaseModule,
+        AuditModule,
         CountersModule,
         IdempotencyModule,
         CommonModule,

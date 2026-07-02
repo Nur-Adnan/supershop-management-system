@@ -15,6 +15,7 @@
     "react-dom": "^19",
     "@heroui/react": "^3",
     "@heroui/styles": "^3",
+    "@supabase/supabase-js": "^2",
     "@supershop/shared": "workspace:*"
   },
   "devDependencies": {

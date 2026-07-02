@@ -12,6 +12,10 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:e2e": "pnpm --filter @supershop/api test:e2e",
+    "migrate:up": "pnpm --filter @supershop/api migrate:up",
+    "migrate:down": "pnpm --filter @supershop/api migrate:down",
+    "migrate:status": "pnpm --filter @supershop/api migrate:status",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"

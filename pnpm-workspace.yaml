@@ -24,3 +24,4 @@ allowBuilds:
   "@swc/core": true
   unrs-resolver: true
   msgpackr-extract: true
+  "@scarf/scarf": false

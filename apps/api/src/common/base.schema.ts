@@ -1,4 +1,4 @@
-import { Schema } from "mongoose";
+import { type Query, Schema } from "mongoose";
 
 /**
  * Audit/soft-delete fields every domain collection carries (Hard Rule 8).
@@ -39,6 +39,17 @@ export function applyBaseSchema(schema: Schema, opts: { softDelete?: boolean } =
       deletedBy: { type: Schema.Types.ObjectId, ref: "User", required: false },
     });
     schema.index({ deletedAt: 1 });
+
+    // Exclude soft-deleted docs from all reads unless the query opts in with
+    // `.setOptions({ withDeleted: true })` (e.g. auth must still see deleted users to deny them).
+    function excludeSoftDeleted(this: Query<unknown, unknown>): void {
+      const queryOpts = this.getOptions() as { withDeleted?: boolean };
+      if (queryOpts.withDeleted) return;
+      const filter = this.getFilter() as Record<string, unknown>;
+      if (filter.deletedAt === undefined) this.where({ deletedAt: null });
+    }
+    schema.pre(/^find/, excludeSoftDeleted);
+    schema.pre("countDocuments", excludeSoftDeleted);
   }
 
   schema.set("timestamps", true);

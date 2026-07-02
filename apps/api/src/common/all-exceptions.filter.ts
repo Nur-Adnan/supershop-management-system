@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { type ApiFailure, ErrorCode } from "@supershop/shared";
-import { isDuplicateKeyError } from "./mongo.util";
+import { isDuplicateKeyError, isMongooseUserError } from "./mongo.util";
 
 const STATUS_TO_CODE: Record<number, string> = {
   400: ErrorCode.BAD_REQUEST,
@@ -32,6 +32,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const reply = ctx.getResponse<FastifyReply>();
     const req = ctx.getRequest<FastifyRequest>();
 
+    // Health probes own their (Terminus) contract on both success and failure; don't
+    // envelope them. The raw result already omits sensitive detail (see RedisHealthIndicator).
+    if (req.url?.startsWith("/health") && exception instanceof HttpException) {
+      void reply.status(exception.getStatus()).send(exception.getResponse());
+      return;
+    }
+
     const { status, body } = this.normalize(exception);
     if (status >= 500) {
       this.logger.error(
@@ -45,6 +52,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private normalize(exception: unknown): { status: number; body: ApiFailure } {
     if (isDuplicateKeyError(exception)) {
       return this.fail(409, ErrorCode.CONFLICT, "Resource already exists", exception.keyValue);
+    }
+
+    // Mongoose cast/validation errors come from bad client input (e.g. a malformed
+    // ObjectId in a filter) — that's a 400, not a 500.
+    if (isMongooseUserError(exception)) {
+      return this.fail(400, ErrorCode.VALIDATION_ERROR, "Invalid request data");
     }
 
     if (exception instanceof HttpException) {

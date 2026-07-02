@@ -33,6 +33,23 @@ export enum PaymentDirection {
   OUT = "OUT",
 }
 
+/**
+ * Discount mechanics for the promotions engine.
+ * ponytail: BOGO/BUNDLE are part of the SCHEMA.md blueprint but need materially different
+ * condition modeling and multi-line computation; only PERCENT/FIXED are implemented so far.
+ * Add BOGO/BUNDLE here once that computation is built, not before.
+ */
+export enum PromotionType {
+  PERCENT = "PERCENT",
+  FIXED = "FIXED",
+}
+
+/** Signed entries in the append-only loyalty_transactions ledger. */
+export enum LoyaltyTransactionType {
+  EARN = "EARN",
+  REDEEM = "REDEEM",
+}
+
 /** Configurable per org/store. Add currencies here as needed. */
 export const SUPPORTED_CURRENCIES = ["BDT", "USD"] as const;
 export type Currency = (typeof SUPPORTED_CURRENCIES)[number];

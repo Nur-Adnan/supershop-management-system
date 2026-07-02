@@ -1,36 +1,34 @@
-import { Controller, Get, Inject, ServiceUnavailableException } from "@nestjs/common";
-import { InjectConnection } from "@nestjs/mongoose";
-import type { Connection } from "mongoose";
-import type Redis from "ioredis";
-import { REDIS } from "../redis/redis.module";
+import { Controller, Get } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
+import { HealthCheck, HealthCheckService, MongooseHealthIndicator } from "@nestjs/terminus";
+import { SkipThrottle } from "@nestjs/throttler";
+import { Public } from "../auth/decorators";
+import { RedisHealthIndicator } from "./redis.health";
 
+@ApiTags("health")
+@Public()
+@SkipThrottle()
 @Controller("health")
 export class HealthController {
   constructor(
-    @InjectConnection() private readonly mongo: Connection,
-    @Inject(REDIS) private readonly redis: Redis,
+    private readonly health: HealthCheckService,
+    private readonly mongoose: MongooseHealthIndicator,
+    private readonly redis: RedisHealthIndicator,
   ) {}
 
-  /** Liveness: process is up. Must not depend on external services. */
+  /** Liveness: the process is up. Must not depend on external services. */
   @Get("live")
   live(): { status: "ok"; uptime: number } {
     return { status: "ok", uptime: process.uptime() };
   }
 
-  /** Readiness: can we actually serve traffic (Mongo + Redis reachable)? */
+  /** Readiness: can we serve traffic — Mongo + Redis reachable. */
   @Get("ready")
-  async ready(): Promise<{ status: "ok"; checks: { mongo: boolean; redis: boolean } }> {
-    const mongo = this.mongo.readyState === 1;
-    let redis: boolean;
-    try {
-      redis = (await this.redis.ping()) === "PONG";
-    } catch {
-      redis = false;
-    }
-    const checks = { mongo, redis };
-    if (!mongo || !redis) {
-      throw new ServiceUnavailableException({ status: "degraded", checks });
-    }
-    return { status: "ok", checks };
+  @HealthCheck()
+  ready() {
+    return this.health.check([
+      () => this.mongoose.pingCheck("mongodb"),
+      () => this.redis.isHealthy("redis"),
+    ]);
   }
 }

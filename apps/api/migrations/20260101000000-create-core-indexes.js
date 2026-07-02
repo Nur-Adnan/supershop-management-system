@@ -6,7 +6,15 @@
 const INDEXES = [
   // products
   { collection: "products", spec: { name: "text" }, options: { name: "products_name_text" } },
-  { collection: "products", spec: { barcodes: 1 }, options: { unique: true, sparse: true } },
+  { collection: "products", spec: { sku: 1 }, options: { unique: true } },
+  // Unique across all barcodes of all products. Partial on `barcodes.0` so that products with
+  // NO barcodes (empty array []) don't collide — a plain `unique+sparse` multikey index rejects
+  // the second empty-array document (verified against MongoDB).
+  {
+    collection: "products",
+    spec: { barcodes: 1 },
+    options: { unique: true, partialFilterExpression: { "barcodes.0": { $exists: true } } },
+  },
   { collection: "products", spec: { categoryId: 1, isActive: 1 } },
   // inventory (cache per product+store)
   { collection: "inventory", spec: { productId: 1, storeId: 1 }, options: { unique: true } },

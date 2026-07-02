@@ -1,4 +1,4 @@
-process.env.MONGODB_URI ??= "mongodb://localhost:27017/supershop_test?replicaSet=rs0";
+process.env.MONGODB_URI ??= "mongodb://127.0.0.1:27017/supershop_test?replicaSet=rs0";
 process.env.NODE_ENV = "test";
 
 import { Prop, Schema, SchemaFactory, MongooseModule, getModelToken } from "@nestjs/mongoose";
@@ -26,6 +26,7 @@ describe("Database / transactions / counters (e2e against replica set)", () => {
   let widget: Model<WidgetDocument>;
 
   beforeAll(async () => {
+    process.env.MONGODB_URI = "mongodb://127.0.0.1:27017/supershop_test?replicaSet=rs0";
     app = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),

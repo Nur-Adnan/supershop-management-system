@@ -37,10 +37,16 @@ export function subtractMoney(a: Money, b: Money): Money {
   return { amount: a.amount - b.amount, currency: a.currency };
 }
 
-/** Multiply by an integer quantity (e.g. a line-item count). */
+/**
+ * Multiply by a quantity — an integer count or a fractional weighed amount (e.g. 1.5 kg).
+ * Rounds half-up to the nearest minor unit, same convention as applyRateBps, so the result
+ * always satisfies the integer-minor-units invariant regardless of the quantity's precision.
+ */
 export function multiplyMoney(m: Money, qty: number): Money {
-  assertInteger(qty, "qty");
-  return { amount: m.amount * qty, currency: m.currency };
+  if (!Number.isFinite(qty)) {
+    throw new Error(`qty must be a finite number, got ${qty}`);
+  }
+  return { amount: Math.round(m.amount * qty), currency: m.currency };
 }
 
 /**

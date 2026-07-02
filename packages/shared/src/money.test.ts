@@ -13,6 +13,11 @@ test("multiply by integer qty", () => {
   assert.equal(multiplyMoney(money(1999, "BDT"), 3).amount, 5997);
 });
 
+test("multiply by a fractional (weighed) qty rounds half-up", () => {
+  // 333 paisa/unit * 1.7 kg = 566.1 -> 566
+  assert.equal(multiplyMoney(money(333, "BDT"), 1.7).amount, 566);
+});
+
 test("VAT 15% via basis points rounds half-up", () => {
   // 15% of 199 paisa = 29.85 -> 30
   assert.equal(applyRateBps(money(199, "BDT"), 1500).amount, 30);
